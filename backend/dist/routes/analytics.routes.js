@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const analytics_controller_1 = require("../controllers/analytics.controller");
+const router = (0, express_1.Router)();
+router.use(auth_1.requireAuth);
+router.get('/monthly', analytics_controller_1.monthlyOverview);
+router.get('/trends', analytics_controller_1.spendingTrends);
+exports.default = router;
