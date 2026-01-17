@@ -26,6 +26,9 @@ export function TransactionsContent() {
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [txType, setTxType] = useState<"INCOME" | "EXPENSE">("EXPENSE")
   const { token } = useAuth()
+  const [categoryFilter, setCategoryFilter] = useState<string | "all">("all")
+  const [typeFilter, setTypeFilter] = useState<"all" | "INCOME" | "EXPENSE">("all")
+  const [periodFilter, setPeriodFilter] = useState<"week" | "month" | "quarter" | "year">("month")
 
   useEffect(() => {
     let mounted = true
@@ -48,11 +51,14 @@ export function TransactionsContent() {
 
         if (catRes.ok) {
           const cjson = await catRes.json()
-          // Normalize categories response: backend may return grouped { system, custom }
           let flat: any[] = []
           if (Array.isArray(cjson)) flat = cjson
           else if (cjson) flat = [...(cjson.custom ?? []), ...(cjson.system ?? [])]
-          if (mounted) setCategories(flat)
+          if (mounted) {
+            setCategories(flat)
+            // default selected category for new transaction if none chosen
+            if (!categoryId && flat.length > 0) setCategoryId(flat[0].id)
+          }
         } else {
           if (mounted) setCategories([])
         }
@@ -70,7 +76,44 @@ export function TransactionsContent() {
     return () => {
       mounted = false
     }
-  }, [token, refreshKey])
+  }, [token])
+
+  // server-driven fetch for search & filters (debounced)
+  useEffect(() => {
+    let cancelled = false
+    const t = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
+        const params = new URLSearchParams()
+        if (searchTerm && searchTerm.trim() !== "") params.set('q', searchTerm.trim())
+        if (categoryFilter && categoryFilter !== 'all') params.set('categoryId', categoryFilter)
+        if (typeFilter && typeFilter !== 'all') params.set('type', typeFilter)
+        if (periodFilter) params.set('period', periodFilter)
+        // include a reasonable limit
+        params.set('limit', '200')
+        const url = `${API}/api/transactions?${params.toString()}`
+        const res = await fetch(url, { headers: { Authorization: token ? `Bearer ${token}` : '' } })
+        if (!cancelled) {
+          if (res.ok) {
+            const data = await res.json()
+            setTransactions(data)
+          } else {
+            setTransactions([])
+          }
+        }
+      } catch (e) {
+        if (!cancelled) setTransactions([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }, 300)
+
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [searchTerm, categoryFilter, typeFilter, periodFilter, token, refreshKey])
 
   return (
     <div className="p-8 space-y-8">
@@ -97,21 +140,34 @@ export function TransactionsContent() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Select defaultValue="all">
+
+            {/* Category filter: uses fetched categories */}
+            <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
               <SelectTrigger className="w-full md:w-[180px]">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="food">Food & Dining</SelectItem>
-                <SelectItem value="entertainment">Entertainment</SelectItem>
-                <SelectItem value="utilities">Utilities</SelectItem>
-                <SelectItem value="transportation">Transportation</SelectItem>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Select defaultValue="month">
+
+            {/* Type filter */}
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="INCOME">Income</SelectItem>
+                <SelectItem value="EXPENSE">Expense</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={periodFilter} onValueChange={(v) => setPeriodFilter(v as any)}>
               <SelectTrigger className="w-full md:w-[180px]">
                 <SelectValue placeholder="Period" />
               </SelectTrigger>
@@ -124,7 +180,7 @@ export function TransactionsContent() {
             </Select>
           </div>
 
-          <div className="rounded-lg border border-border overflow-hidden">
+          <div className="rounded-lg overflow-hidden shadow-sm bg-card">
             <div className="overflow-x-auto">
               {loading ? (
                 <div className="p-8 text-center">Loading transactions...</div>
@@ -148,7 +204,7 @@ export function TransactionsContent() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border bg-card">
+                  <tbody className="divide-y divide-muted/30 bg-card">
                     {transactions.map((transaction) => (
                       <tr key={transaction.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
@@ -162,9 +218,21 @@ export function TransactionsContent() {
                           {transaction.description}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant="secondary" className="font-normal">
-                            {transaction.category?.name ?? "Uncategorized"}
-                          </Badge>
+                          {/* category pill with light color accents */}
+                          <span
+                            className={(() => {
+                              const n = (transaction.category?.name || '').toLowerCase()
+                              if (!n) return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground'
+                              if (n.includes('food') || n.includes('groc') || n.includes('grocery')) return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-800'
+                              if (n.includes('entertain') || n.includes('movie') || n.includes('netflix')) return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-50 text-pink-800'
+                              if (n.includes('subscript') || n.includes('subscription')) return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-800'
+                              if (n.includes('utility') || n.includes('bill')) return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800'
+                              if (n.includes('income') || n.includes('salary')) return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-800'
+                              return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted/20 text-muted-foreground'
+                            })()}
+                          >
+                            {transaction.category?.name ?? 'Uncategorized'}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold">
                           <span className={transaction.type === "INCOME" ? "text-success" : "text-foreground"}>
@@ -202,13 +270,11 @@ export function TransactionsContent() {
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Category</label>
-                {/* Use a sentinel value for 'none' because Select.Item value cannot be empty string */}
-                <Select defaultValue={categoryId ?? "none"} onValueChange={(v) => setCategoryId(v)}>
+                <Select value={categoryId ?? ""} onValueChange={(v) => setCategoryId(v)}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Uncategorized</SelectItem>
                     {categories.map((c) => (
                       <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
@@ -235,13 +301,17 @@ export function TransactionsContent() {
                     // submit
                     const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"
                     try {
-                      const body = {
-                        description: desc,
-                        amount: Number(amountInput),
-                        date: dateInput,
-                        categoryId: categoryId && categoryId !== "none" ? categoryId : undefined,
-                        type: txType,
-                      }
+                        if (!categoryId) {
+                          console.error('Please select a category')
+                          return
+                        }
+                        const body = {
+                          description: desc,
+                          amount: Number(amountInput),
+                          date: dateInput,
+                          categoryId,
+                          type: txType,
+                        }
                       const res = await fetch(`${API}/api/transactions`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : "" },

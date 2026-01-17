@@ -45,7 +45,10 @@ export function BudgetsContent() {
           let flat: any[] = []
           if (Array.isArray(cjson)) flat = cjson
           else if (cjson) flat = [...(cjson.custom ?? []), ...(cjson.system ?? [])]
-          if (mounted) setCategories(flat)
+          if (mounted) {
+            setCategories(flat)
+            if (!catId && flat.length > 0) setCatId(flat[0].id)
+          }
         } else {
           if (mounted) setCategories([])
         }

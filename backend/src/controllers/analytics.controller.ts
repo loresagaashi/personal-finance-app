@@ -27,6 +27,17 @@ export const monthlyOverview = async (req: Request, res: Response) => {
   res.json({ income: Number(incomeAgg._sum.amount ?? 0), expense: Number(expenseAgg._sum.amount ?? 0), categoryTotals });
 };
 
+// GET /analytics/balance
+export const currentBalance = async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  const incomeAgg = await prisma.transaction.aggregate({ where: { userId, type: 'INCOME' }, _sum: { amount: true } });
+  const expenseAgg = await prisma.transaction.aggregate({ where: { userId, type: 'EXPENSE' }, _sum: { amount: true } });
+  const income = Number(incomeAgg._sum.amount ?? 0);
+  const expense = Number(expenseAgg._sum.amount ?? 0);
+  const balance = income - expense;
+  res.json({ balance });
+};
+
 // GET /analytics/trends?months=6
 export const spendingTrends = async (req: Request, res: Response) => {
   const userId = (req as any).user?.id;

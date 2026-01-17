@@ -27,6 +27,15 @@ export const updateProfile = async (req: Request, res: Response) => {
   }
 
   const updated = await prisma.user.update({ where: { id: userId }, data });
+  // If monthlyIncome was provided in the request, invalidate AI insights so they regenerate
+  if (monthlyIncome !== undefined) {
+    try {
+      await prisma.aIInsight.deleteMany({ where: { userId } });
+    } catch (e) {
+      // ignore
+    }
+  }
+
   res.json({ id: updated.id, email: updated.email, name: updated.name, monthlyIncome: updated.monthlyIncome });
 };
 

@@ -12,6 +12,10 @@ export const createBudget = async (req: Request, res: Response) => {
   if (category.userId && category.userId !== userId) return res.status(403).json({ message: 'Forbidden category' });
 
   const b = await prisma.budget.create({ data: { userId, categoryId, amount: Number(amount), month, year } });
+  // Invalidate AI insights cache for this user
+  try {
+    await prisma.aIInsight.deleteMany({ where: { userId } });
+  } catch (e) {}
   res.status(201).json(b);
 };
 
@@ -50,6 +54,9 @@ export const updateBudget = async (req: Request, res: Response) => {
   if (!b || b.userId !== userId) return res.status(404).json({ message: 'Not found' });
   const { amount, month, year } = req.body;
   const updated = await prisma.budget.update({ where: { id }, data: { amount: amount !== undefined ? Number(amount) : undefined, month, year } });
+  try {
+    await prisma.aIInsight.deleteMany({ where: { userId } });
+  } catch (e) {}
   res.json(updated);
 };
 
@@ -59,5 +66,8 @@ export const deleteBudget = async (req: Request, res: Response) => {
   const b = await prisma.budget.findUnique({ where: { id } });
   if (!b || b.userId !== userId) return res.status(404).json({ message: 'Not found' });
   await prisma.budget.delete({ where: { id } });
+  try {
+    await prisma.aIInsight.deleteMany({ where: { userId } });
+  } catch (e) {}
   res.status(204).send();
 };

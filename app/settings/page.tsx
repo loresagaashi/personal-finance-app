@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/page-header"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Sidebar } from "@/components/sidebar"
+import ProtectedClient from "@/components/protected-client"
 
 export default function SettingsPage() {
   const { token } = useAuth()
@@ -99,13 +101,16 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 space-y-8">
-      <PageHeader title="Settings" description="Manage your profile and preferences" />
+    <div className="flex h-screen bg-background">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto p-8">
+        <ProtectedClient>
+          <PageHeader title="Settings" description="Manage your profile and preferences" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardContent>
-            <form onSubmit={saveProfile} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardContent>
+                <form onSubmit={saveProfile} className="space-y-4">
               <div>
                 <label className="text-sm text-muted-foreground">Name</label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -149,8 +154,12 @@ export default function SettingsPage() {
               </div>
             </form>
           </CardContent>
-        </Card>
-      </div>
+            </Card>
+
+            {/* single change-password card (duplicate removed) */}
+          </div>
+        </ProtectedClient>
+      </main>
     </div>
   )
 }
