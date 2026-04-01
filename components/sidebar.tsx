@@ -65,6 +65,22 @@ export function Sidebar() {
           )
         })}
 
+        {user?.isAdmin && (
+          <Link
+            key="Users"
+            href="/users"
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname === "/users"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            )}
+          >
+            <LayoutDashboard className="h-5 w-5 flex-shrink-0" />
+            {!isCollapsed && <span>Users</span>}
+          </Link>
+        )}
+
         {/* Dedicated Logout button (separate from Settings) */}
         <div className="pt-2">
           <button

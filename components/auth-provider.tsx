@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 
-type User = { id: string; email: string; name?: string; monthlyIncome?: number | string }
+type User = { id: string; email: string; name?: string; monthlyIncome?: number | string; isAdmin?: boolean }
 
 type AuthContextValue = {
   user: User | null
@@ -23,12 +23,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    // hydrate from localStorage
-    const t = typeof window !== "undefined" ? localStorage.getItem("pf_token") : null
+  // hydrate from localStorage
+  const t = typeof window !== "undefined" ? localStorage.getItem("pf_token") : null
     if (!t) {
       setLoading(false)
-      // If on a protected route, redirect to login
-      if (pathname && pathname !== "/login") router.replace("/login")
+      // If on a protected route, redirect to login. Allow public routes like /login and /signup.
+      const publicPaths = ['/login', '/signup']
+      if (pathname && !publicPaths.includes(pathname)) router.replace('/login')
       return
     }
 
@@ -41,6 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const u = await res.json()
         setUser(u)
         setToken(t)
+        // persist minimal user to localStorage
+        try { localStorage.setItem('pf_user', JSON.stringify(u)) } catch(e) {}
       } catch (err) {
         localStorage.removeItem("pf_token")
         localStorage.removeItem("pf_user")

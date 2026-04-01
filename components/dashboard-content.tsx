@@ -8,9 +8,11 @@ import { ArrowUpRight, ArrowDownRight, Sparkles, TrendingUp } from "lucide-react
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useAuth } from "./auth-provider"
+import { useRouter } from "next/navigation"
 
 export function DashboardContent() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const router = useRouter()
   const [transactions, setTransactions] = useState<any[]>([])
   const [income, setIncome] = useState(0)
   const [profileIncome, setProfileIncome] = useState<number | null>(null)
@@ -19,6 +21,13 @@ export function DashboardContent() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // If the user is an admin, redirect them to the admin users page and
+    // avoid fetching the global transactions overview.
+    if (user && user.isAdmin) {
+      router.replace('/users')
+      return
+    }
+
     let mounted = true
     async function load() {
       setLoading(true)
@@ -74,7 +83,7 @@ export function DashboardContent() {
     return () => {
       mounted = false
     }
-  }, [token])
+  }, [token, user, router])
 
   const totalBalance = balance ?? transactions.reduce((s, t) => s + Number(t.amount), 0)
 

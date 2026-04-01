@@ -5,6 +5,7 @@ import budgetsRoutes from './budgets.routes';
 import categoriesRoutes from './categories.routes';
 import analyticsRoutes from './analytics.routes';
 import aiRoutes from './ai.routes';
+import adminRoutes from './admin.routes';
 import usersRoutes from './users.routes';
 
 const router = Router();
@@ -18,6 +19,7 @@ router.use('/analytics', analyticsRoutes);
 router.use('/ai-insights', aiRoutes);
 // legacy /api/ai route (frontend used /api/ai) — keep both paths working
 router.use('/ai', aiRoutes);
+router.use('/admin', adminRoutes);
 router.use('/users', usersRoutes);
 
 export default router;

@@ -26,6 +26,18 @@ async function main() {
     console.log('Created demo user:', user.id);
   }
 
+  // admin user (set isAdmin=true)
+  const adminEmail = 'loresa@gmail.com';
+  const adminExists = await prisma.user.findUnique({ where: { email: adminEmail } });
+  if (!adminExists) {
+    const passwordHash = await hashPassword('loresa');
+    const admin = await prisma.user.create({ data: { email: adminEmail, passwordHash, name: 'Admin', isAdmin: true } });
+    console.log('Created admin user:', admin.id);
+  } else if (!adminExists.isAdmin) {
+    await prisma.user.update({ where: { email: adminEmail }, data: { isAdmin: true } });
+    console.log('Updated existing user to admin:', adminEmail);
+  }
+
   console.log('Seeding complete.');
 }
 
